@@ -3,6 +3,7 @@ package network
 import (
 	"errors"
 	"fmt"
+	"io"
 )
 
 func Init() {
@@ -14,7 +15,7 @@ func New() *Network {
 }
 
 type Node interface {
-	receiveRequest(url string, httpMethod string, body string, headers string) (*Response, error)
+	receiveRequest(url string, httpMethod string, body io.Reader, headers map[string]string) (*Response, error)
 }
 
 type Network struct {
@@ -26,12 +27,14 @@ func (network *Network) RegisterNode(url string, n Node) {
 }
 
 type Response struct {
-	ok         bool
-	body       string
+	Status         string
+  StatusCode int
+	Body       io.ReadCloser
 	statusCode int
 }
 
-func (network *Network) Send(url string, httpMethod string, body string, headers string) (*Response, error) {
+func (network *Network) Send(url string, httpMethod string, body io.Reader, headers map[string]string) (*Response, error) {
+  // query parameters are included already in the url
 	if _, ok := network.registeredNodes[url]; !ok {
 		return nil, errors.New("url not found")
 	}
