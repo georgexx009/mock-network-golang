@@ -1,9 +1,24 @@
 package basenode
 
-// it has the methods to abstract network communication
-// the business packages will expect X methods
-// this module has them and a real package using a real network would have them too
+import "mock-network-golang/network"
+import "io"
 
-// both packages: real and mock, would receive a request (group of properties)
-// this request is set by the real and mock packages and used by the businessPackages
-// how to do the request interchangable so no mattern the real and mock
+type Basenode struct {
+  HostUrl string
+  Network *network.Network
+}
+
+func (baseNode *Basenode) ReceiveRequest(url string, httpMethod string, body io.Reader, headers map[string]string) (*network.Response, error) {
+  return &network.Response{}, nil
+}
+
+func (baseNode *Basenode) SendRequest(url string, httpMethod string, body io.Reader, headers map[string]string) (*network.Response, error) {
+  return baseNode.Network.NetworkCall(url, httpMethod, body, headers)
+}
+
+func New(hostUrl string, n *network.Network) *Basenode {
+  baseNode := &Basenode{hostUrl, n}
+  n.RegisterNode(baseNode.HostUrl, baseNode)
+  return baseNode
+}
+

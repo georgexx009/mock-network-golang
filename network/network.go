@@ -15,7 +15,7 @@ func New() *Network {
 }
 
 type Node interface {
-	receiveRequest(url string, httpMethod string, body io.Reader, headers map[string]string) (*Response, error)
+	ReceiveRequest(url string, httpMethod string, body io.Reader, headers map[string]string) (*Response, error)
 }
 
 type Network struct {
@@ -33,11 +33,11 @@ type Response struct {
 	statusCode int
 }
 
-func (network *Network) Send(url string, httpMethod string, body io.Reader, headers map[string]string) (*Response, error) {
+func (network *Network) NetworkCall(url string, httpMethod string, body io.Reader, headers map[string]string) (*Response, error) {
   // query parameters are included already in the url
 	if _, ok := network.registeredNodes[url]; !ok {
 		return nil, errors.New("url not found")
 	}
 
-	return network.registeredNodes[url].receiveRequest(url, httpMethod, body, headers)
+	return network.registeredNodes[url].ReceiveRequest(url, httpMethod, body, headers)
 }
