@@ -8,14 +8,20 @@ import (
   "mock-network-golang/network"
 )
 
+type Response struct {
+  Status         string
+  StatusCode int
+	Body       io.ReadCloser
+}
+
 type Basenode struct {
   HostUrl string
   Network *network.Network
-  RestApi map[string]map[string]func(w http.ResponseWriter, r *http.Request)(network.Response)
+  RestApi map[string]map[string]func(w http.ResponseWriter, r *http.Request) Response
 }
 
 func New(hostUrl string, n *network.Network) *Basenode {
-  restApi := make(map[string]map[string]func(w http.ResponseWriter, r *http.Request)(network.Response))
+  restApi := make(map[string]map[string]func(w http.ResponseWriter, r *http.Request) Response)
   baseNode := &Basenode{hostUrl, n, restApi}
   n.RegisterNode(baseNode.HostUrl, baseNode)
   return baseNode
@@ -64,15 +70,21 @@ func (baseNode *Basenode) ReceiveRequest(url string, httpMethod string, body io.
   r.Header = requestHeaders
   r.Body = body
 
-  return baseNode.RestApi[path][httpMethod](w, &r)
+  baseNodeResponse := baseNode.RestApi[path][httpMethod](w, &r)
+  return network.Response{
+    Status: baseNodeResponse.Status,
+    StatusCode: baseNodeResponse.StatusCode,
+    Body: baseNodeResponse.Body,
+  }
 }
 
 // SendRequest - send an http request
-func (baseNode *Basenode) SendRequest(url string, httpMethod string, body io.ReadCloser, headers map[string]string) (network.Response) {
-  return baseNode.Network.NetworkCall(url, httpMethod, body, headers)
+func (baseNode *Basenode) SendRequest(url string, httpMethod string, body io.ReadCloser, headers map[string]string) Response {
+  res := baseNode.Network.NetworkCall(url, httpMethod, body, headers)
+  return Response{Status: res.Status, StatusCode: res.StatusCode, Body: res.Body}
 }
 
-func (baseNode *Basenode) RegisterHandlerFunc(path string, httpVerb string, handler func(w http.ResponseWriter, r *http.Request)(network.Response)) {
+func (baseNode *Basenode) RegisterHandlerFunc(path string, httpVerb string, handler func(w http.ResponseWriter, r *http.Request) Response) {
   // path already exists
   if pathMap, ok := baseNode.RestApi[path]; ok {
     pathMap[httpVerb] = handler
@@ -80,7 +92,7 @@ func (baseNode *Basenode) RegisterHandlerFunc(path string, httpVerb string, hand
   }
 
   // create path map and then save it
-  pathMap := make(map[string]func(w http.ResponseWriter, r *http.Request)(network.Response))
+  pathMap := make(map[string]func(w http.ResponseWriter, r *http.Request) Response)
   pathMap[httpVerb] = handler
   baseNode.RestApi[path] = pathMap
 }
