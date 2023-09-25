@@ -1,9 +1,10 @@
 package network
 
 import (
-	"errors"
 	"fmt"
 	"io"
+  "net/http"
+  "net/url"
 )
 
 func Init() {
@@ -15,7 +16,7 @@ func New() *Network {
 }
 
 type Node interface {
-	ReceiveRequest(url string, httpMethod string, body io.Reader, headers map[string]string) (*Response, error)
+	ReceiveRequest(url string, httpMethod string, body io.ReadCloser, headers map[string]string) Response
 }
 
 type Network struct {
@@ -26,17 +27,27 @@ func (network *Network) RegisterNode(url string, n Node) {
 	network.registeredNodes[url] = n
 }
 
+type Request struct {
+  Method string
+  Url url.URL
+  Headers http.Header
+  Body io.ReadCloser
+}
+
 type Response struct {
 	Status         string
   StatusCode int
 	Body       io.ReadCloser
-	statusCode int
 }
 
-func (network *Network) NetworkCall(url string, httpMethod string, body io.Reader, headers map[string]string) (*Response, error) {
+func (network *Network) NetworkCall(url string, httpMethod string, body io.ReadCloser, headers map[string]string) Response {
   // query parameters are included already in the url
 	if _, ok := network.registeredNodes[url]; !ok {
-		return nil, errors.New("url not found")
+    response := Response{
+      Status: "url not found",
+      StatusCode: 503,
+    }
+		return response
 	}
 
 	return network.registeredNodes[url].ReceiveRequest(url, httpMethod, body, headers)
