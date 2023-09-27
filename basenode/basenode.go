@@ -1,11 +1,12 @@
 package basenode
 
 import (
-  "io"
-  "net/http"
-  urlPkg "net/url"
-  
-  "mock-network-golang/network"
+	"fmt"
+	"io"
+	"net/http"
+	urlPkg "net/url"
+
+	"mock-network-golang/network"
 )
 
 type Response struct {
@@ -14,21 +15,29 @@ type Response struct {
 	Body       io.ReadCloser
 }
 
+// MARK
+type Request struct {
+  Url string
+  HttpMethod string
+  Body io.ReadCloser
+  Headers http.Header
+}
+
 type Basenode struct {
   HostUrl string
   Network *network.Network
-  RestApi map[string]map[string]func(w http.ResponseWriter, r *http.Request) Response
+  RestApi map[string]map[string]func(req Request) Response
 }
 
 func New(hostUrl string, n *network.Network) *Basenode {
-  restApi := make(map[string]map[string]func(w http.ResponseWriter, r *http.Request) Response)
+  restApi := make(map[string]map[string]func(req Request) Response)
   baseNode := &Basenode{hostUrl, n, restApi}
   n.RegisterNode(baseNode.HostUrl, baseNode)
   return baseNode
 }
 
 // ReceiveRequest - receive http request
-func (baseNode *Basenode) ReceiveRequest(url string, httpMethod string, body io.ReadCloser, headers map[string]string) network.Response {
+func (baseNode *Basenode) ReceiveRequest(url string, httpMethod string, body io.ReadCloser, headers http.Header) network.Response {
   u, err := urlPkg.Parse(url) 
   if err != nil {
     response := network.Response{
@@ -58,19 +67,14 @@ func (baseNode *Basenode) ReceiveRequest(url string, httpMethod string, body io.
     return response
   }
 
-  requestHeaders := http.Header{}
-  for k, v := range headers {
-    requestHeaders.Add(k, v)
+  req := Request{
+    Body: body,
+    HttpMethod: httpMethod,
+    Url: u.String(),
+    Headers: headers,
   }
 
-  var w http.ResponseWriter
-  var r http.Request
-  r.Method = httpMethod
-  r.URL = u
-  r.Header = requestHeaders
-  r.Body = body
-
-  baseNodeResponse := baseNode.RestApi[path][httpMethod](w, &r)
+  baseNodeResponse := baseNode.RestApi[path][httpMethod](req)
   return network.Response{
     Status: baseNodeResponse.Status,
     StatusCode: baseNodeResponse.StatusCode,
@@ -79,12 +83,22 @@ func (baseNode *Basenode) ReceiveRequest(url string, httpMethod string, body io.
 }
 
 // SendRequest - send an http request
-func (baseNode *Basenode) SendRequest(url string, httpMethod string, body io.ReadCloser, headers map[string]string) Response {
-  res := baseNode.Network.NetworkCall(url, httpMethod, body, headers)
+func (baseNode *Basenode) SendRequest(req *Request) Response {
+  // MARK
+  u, err := urlPkg.Parse(req.Url)
+  if err != nil {
+    return Response{
+      Status: "bad url",
+      StatusCode: 400,
+    }
+  }
+  fmt.Println("sending request to ", req.Url, "with host", u.Hostname())
+
+  res := baseNode.Network.NetworkCall(u.Hostname(), req.Url, req.HttpMethod, req.Body, req.Headers)
   return Response{Status: res.Status, StatusCode: res.StatusCode, Body: res.Body}
 }
 
-func (baseNode *Basenode) RegisterHandlerFunc(path string, httpVerb string, handler func(w http.ResponseWriter, r *http.Request) Response) {
+func (baseNode *Basenode) RegisterHandlerFunc(path string, httpVerb string, handler func(req Request) Response) {
   // path already exists
   if pathMap, ok := baseNode.RestApi[path]; ok {
     pathMap[httpVerb] = handler
@@ -92,7 +106,8 @@ func (baseNode *Basenode) RegisterHandlerFunc(path string, httpVerb string, hand
   }
 
   // create path map and then save it
-  pathMap := make(map[string]func(w http.ResponseWriter, r *http.Request) Response)
+  pathMap := make(map[string]func(req Request) Response)
   pathMap[httpVerb] = handler
   baseNode.RestApi[path] = pathMap
 }
+

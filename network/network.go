@@ -16,7 +16,7 @@ func New() *Network {
 }
 
 type Node interface {
-	ReceiveRequest(url string, httpMethod string, body io.ReadCloser, headers map[string]string) Response
+	ReceiveRequest(url string, httpMethod string, body io.ReadCloser, headers http.Header) Response
 }
 
 type Network struct {
@@ -40,9 +40,10 @@ type Response struct {
 	Body       io.ReadCloser
 }
 
-func (network *Network) NetworkCall(url string, httpMethod string, body io.ReadCloser, headers map[string]string) Response {
+func (network *Network) NetworkCall(host string, url string, httpMethod string, body io.ReadCloser, headers http.Header) Response {
   // query parameters are included already in the url
-	if _, ok := network.registeredNodes[url]; !ok {
+	if _, ok := network.registeredNodes[host]; !ok {
+    fmt.Printf("[error] node not found with host %s: %+v", host, network.registeredNodes)
     response := Response{
       Status: "url not found",
       StatusCode: 503,
@@ -50,5 +51,5 @@ func (network *Network) NetworkCall(url string, httpMethod string, body io.ReadC
 		return response
 	}
 
-	return network.registeredNodes[url].ReceiveRequest(url, httpMethod, body, headers)
+	return network.registeredNodes[host].ReceiveRequest(url, httpMethod, body, headers)
 }
