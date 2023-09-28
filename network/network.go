@@ -5,6 +5,7 @@ import (
 	"io"
   "net/http"
   "net/url"
+  "time"
 )
 
 func Init() {
@@ -40,6 +41,10 @@ type Response struct {
 	Body       io.ReadCloser
 }
 
+func (network *Network) Latency(seconds int) {
+  time.Sleep(time.Duration(seconds) * time.Second)
+}
+
 func (network *Network) NetworkCall(host string, url string, httpMethod string, body io.ReadCloser, headers http.Header) Response {
   // query parameters are included already in the url
 	if _, ok := network.registeredNodes[host]; !ok {
@@ -50,6 +55,8 @@ func (network *Network) NetworkCall(host string, url string, httpMethod string, 
     }
 		return response
 	}
+
+  network.Latency(3)
 
 	return network.registeredNodes[host].ReceiveRequest(url, httpMethod, body, headers)
 }
