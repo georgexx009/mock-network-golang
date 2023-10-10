@@ -5,6 +5,7 @@ import (
   "log/slog"
 	"net/http"
 	urlPkg "net/url"
+  "time"
 
 	"mock-network-golang/network"
 )
@@ -81,6 +82,7 @@ func (baseNode *Basenode) ReceiveRequest(url string, httpMethod string, body io.
   }
   logger.Info("request received", "req", req)
 
+  simulateWorkingTime(3)
   baseNodeResponse := baseNode.RestApi[path][httpMethod](req)
   logger.Info("response", "res", baseNodeResponse)
 
@@ -120,3 +122,6 @@ func (baseNode *Basenode) RegisterHandlerFunc(path string, httpVerb string, hand
   baseNode.RestApi[path] = pathMap
 }
 
+func simulateWorkingTime(secs int) {
+  time.Sleep(time.Duration(secs) * time.Second)
+}
