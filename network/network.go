@@ -41,7 +41,7 @@ type Response struct {
 	Body       io.ReadCloser
 }
 
-func (network *Network) Latency(seconds int) {
+func latency(seconds int) {
   time.Sleep(time.Duration(seconds) * time.Second)
 }
 
@@ -56,7 +56,7 @@ func (network *Network) NetworkCall(host string, url string, httpMethod string, 
 		return response
 	}
 
-  network.Latency(3)
+  latency(1)
 
 	return network.registeredNodes[host].ReceiveRequest(url, httpMethod, body, headers)
 }
